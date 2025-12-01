@@ -120,7 +120,7 @@ class Light(Device):
 
     @property
     def status(self) -> bool:
-        return f'{self.name} включена' if self.__brightness > 0 else f'{self.name} выключена'
+        return True if self.__brightness > 0 else False
 
     @access_for({Role.ADMIN, Role.USER, Role.GUEST})
     def turn_off(self, user: User) -> None:
@@ -383,5 +383,7 @@ class SmartHome:
                 raise ValueError("Неизвестный метод")
          else:
             raise KeyError(f"Устройство не найдено по id: {id_name}")
+
+
 
 
