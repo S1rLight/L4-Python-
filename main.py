@@ -88,6 +88,9 @@ class Device(ABC):
     def type(self):
         pass
 
+    def __str__(self):
+        return f'{self.id_name}: {self.name}'
+
 '-------------------------------------------------LIGHT-------------------------------------------------'
 
 class Light(Device):
@@ -129,8 +132,6 @@ class Light(Device):
         self.brightness = level
         print(f'{self.name} включён.')
 
-    def __str__(self):
-        return f'{self.id_name}: {self.name}'
 
 '-------------------------------------------------THERMOSTAT-------------------------------------------------'
 
@@ -217,9 +218,6 @@ class Thermostat(Device):
         print(f"[{time.strftime('%H:%M:%S')}] {self.name}: достигнута цель {self.__target}°C")
         self.turn_off(user)
 
-    def __str__(self):
-        return f'{self.id_name}: {self.name}'
-
 '-------------------------------------------------CAMERA-------------------------------------------------'
 
 class Camera(Device):
@@ -284,9 +282,6 @@ class Camera(Device):
             raise KeyError(f"Запись с ID {id_obj} не найдена.")
         print(f"Запись с ID {id_obj} удалена.")
 
-    def __str__(self):
-        return f'{self.id_name}: {self.name}'
-
 '-------------------------------------------------CLOCK-------------------------------------------------'
 
 class Clock(Device):
@@ -343,9 +338,6 @@ class Clock(Device):
             self._status = False
             print(f'{self.name} выключен.')
 
-    def __str__(self):
-        return f'{self.id_name}: {self.name}'
-
 '-------------------------------------------------SMARTHOME-------------------------------------------------'
 
 class SmartHome:
@@ -391,29 +383,5 @@ class SmartHome:
                 raise ValueError("Неизвестный метод")
          else:
             raise KeyError(f"Устройство не найдено по id: {id_name}")
-
-light = Light('L1', 'My_light')
-thermo = Thermostat('T1', 'My_thermo', 27.0)
-cam = Camera('C1', 'My_cam')
-cl = Clock('CL1', 'My_cl')
-
-admin = User('Dan', Role.ADMIN)
-user = User('Dan_user', Role.USER)
-guest = User('Dan_guest', Role.GUEST)
-home = SmartHome()
-
-home.add_device(admin, light)
-home.add_device(admin, thermo)
-home.add_device(admin, cam)
-home.add_device(user, cl)
-
-home.control_device(admin, 'CL1', 'turn_on')
-home.control_device(admin, 'CL1', 'set_12h')
-print(cl.current_time)
-home.control_device(admin, 'CL1', 'set_24h')
-print(cl.current_datetime)
-
-
-
 
 
