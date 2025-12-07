@@ -306,7 +306,7 @@ class Clock(Device):
                 return time.strftime('%H:%M:%S', now)
             else:
                 return time.strftime('%I:%M:%S %p', now)
-        raise RuntimeError(f"{self.name} выключен.")
+        raise RuntimeError(f"{self.name} выключены.")
 
     @property
     def current_datetime(self):
@@ -316,27 +316,31 @@ class Clock(Device):
                 return now.strftime('%Y/%m/%d, %H:%M:%S')
             else:
                 return now.strftime('%Y/%m/%d, %I:%M:%S %p')
-        raise RuntimeError(f"{self.name} выключен.")
+        raise RuntimeError(f"{self.name} выключены.")
 
     @access_for({Role.ADMIN})
     def set_12h(self, user: User):
-        self._en_time = True
+        if self._status:
+            self._en_time = True
+        raise RuntimeError(f"{self.name} выключены.")
 
     @access_for({Role.ADMIN})
     def set_24h(self, user: User):
-        self._en_time = False
+        if self._status:
+            self._en_time = False
+        raise RuntimeError(f"{self.name} выключены.")
 
     @access_for({Role.ADMIN})
     def turn_on(self, user: User):
         if not self._status:
             self._status = True
-            print(f'{self.name} включен.')
+            print(f'{self.name} включены.')
 
     @access_for({Role.ADMIN})
     def turn_off(self, user: User):
         if self._status:
             self._status = False
-            print(f'{self.name} выключен.')
+            print(f'{self.name} выключены.')
 
 '-------------------------------------------------SMARTHOME-------------------------------------------------'
 
