@@ -383,6 +383,7 @@ class SmartHome:
          else:
             raise KeyError(f"Устройство не найдено по id: {id_name}")
 
+    @access_for({Role.ADMIN})
     def find(self, user: User, id_name: str):
         try:
             return self.__all_devices[id_name]
