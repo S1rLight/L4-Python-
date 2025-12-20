@@ -354,22 +354,17 @@ class SmartHome:
 
     @access_for({Role.ADMIN, Role.USER})
     def add_device(self, user: User, device):
-        if user.role in {Role.ADMIN, Role.USER}:
-            key = device.id_name
-            self.__all_devices[key] = device
-        else:
-            raise PermissionError(f"У {user.name} ({user.role}) нету прав доступа к данному методу.")
+        key = device.id_name
+        self.__all_devices[key] = device
 
     @access_for({Role.ADMIN})
     def remove_device(self, user: User, device):
-        if user.role == Role.ADMIN:
-            key = device.id_name
-            try:
-                del self.__all_devices[key]
-            except KeyError:
-                raise KeyError(f"Устройство не найдено.")
-        else:
-            raise PermissionError(f"У {user.name} ({user.role}) нету прав доступа.")
+        key = device.id_name
+        try:
+            del self.__all_devices[key]
+        except KeyError:
+            raise KeyError(f"Устройство не найдено.")
+
 
     @access_for({Role.ADMIN})
     def show_all_devices(self, user: User):
@@ -387,6 +382,13 @@ class SmartHome:
                 raise ValueError("Неизвестный метод")
          else:
             raise KeyError(f"Устройство не найдено по id: {id_name}")
+
+    def find(self, user: User, id_name: str):
+        try:
+            return self.__all_devices[id_name]
+        except KeyError:
+            print(f'Устройство не найдено по id: {id_name}')
+
 
 
 
