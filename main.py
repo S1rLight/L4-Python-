@@ -1,10 +1,19 @@
 from abc import ABC, abstractmethod
 import time
 from datetime import datetime
-from pprint import pprint
 from functools import wraps
 from enum import Enum
 from typing import Set
+import logging
+
+'-------------------------------------------------LOGGING-------------------------------------------------'
+
+logging.basicConfig(
+    level=logging.INFO,
+    filename='py_log.log',
+    filemode='w',
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 '-------------------------------------------------ROLE-------------------------------------------------'
 
@@ -69,6 +78,31 @@ class Device(ABC):
     def __init__(self, id_name, name):
         self.id_name = id_name
         self.name = name
+        self._logger = logging.getLogger(self.__class__.__name__)
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, value):
+        if not isinstance(value, str):
+            raise TypeError("name должно быть формата string")
+        if not value.strip():
+            raise ValueError("name не может быть пустым")
+        self._name = value
+
+    @property
+    def id_name(self):
+        return self._id_name
+
+    @id_name.setter
+    def id_name(self, value: str) -> None:
+        if not isinstance(value, str):
+            raise TypeError("id_name должно быть формата string")
+        if not value.strip():
+            raise ValueError("id_name не может быть пустым")
+        self._id_name = value
 
     @abstractmethod
     def turn_on(self):
@@ -97,6 +131,7 @@ class Light(Device):
     def __init__(self, id_name: str, name: str, brightness: int = 0):
         super().__init__(id_name, name)
         self.brightness = brightness
+        self._status = False
 
     @property
     def type(self):
@@ -116,22 +151,22 @@ class Light(Device):
     @access_for({Role.ADMIN, Role.USER})
     def set_brightness(self, user: User, value: int = 50):
         self.brightness = value
-        print(f'{self.name}: выставлена текущая яркость {self.__brightness}.')
+        self._logger.info('%s: выставлена текущая яркость %d', self.name, self.__brightness)
 
     @property
     def status(self) -> bool:
-        return True if self.__brightness > 0 else False
+        return self._status
 
     @access_for({Role.ADMIN, Role.USER, Role.GUEST})
     def turn_off(self, user: User) -> None:
-        self.brightness = 0
-        print(f'{self.name} выключён.')
+        self._status = False
+        self._logger.info('%s выключен.', self.name)
 
     @access_for({Role.ADMIN, Role.USER, Role.GUEST})
-    def turn_on(self, user: User, level : int = 50) -> None:
+    def turn_on(self, user: User, level: int = 50) -> None:
         self.brightness = level
-        print(f'{self.name} включён.')
-
+        self._status = True
+        self._logger.info('%s включён.', self.name)
 
 '-------------------------------------------------THERMOSTAT-------------------------------------------------'
 
@@ -162,9 +197,9 @@ class Thermostat(Device):
         self.__current = self._is_validate(temp)
 
     @access_for({Role.ADMIN, Role.USER})
-    def set_current_temp(self, user: User, temp = 24.0):
+    def set_current_temp(self, user: User, temp=24.0):
         self.current = temp
-        print(f'{self.name}: Установлена текущая температура - {self.__current}')
+        self._logger.info('%s: установлена текущая температура - %.1f°C', self.name, self.__current)
 
     @property
     def target(self):
@@ -178,7 +213,7 @@ class Thermostat(Device):
     def set_target_temp(self, user: User, temp: float = 20.0):
         self.target = temp
         self.turn_on(user)
-        print(f'{self.name}: выставлена целевая температура - {self.__target}°С.')
+        self._logger.info('%s: выставлена целевая температура - %.1f°C.', self.name, self.__target)
 
     @property
     def status(self):
@@ -188,22 +223,23 @@ class Thermostat(Device):
     def turn_on(self, user: User):
         if not self._status:
             self._status = True
-            print(f'{self.name} включён.')
+            self._logger.info('%s включён.', self.name)
 
     @access_for({Role.ADMIN, Role.USER})
     def turn_off(self, user: User):
         if self._status:
             self._status = False
-            print(f'{self.name} выключен.')
+            self._logger.info('%s выключен.', self.name)
 
     @access_for({Role.ADMIN, Role.USER})
-    def start(self, user: User, step_sec : int = 3, step_temp : float = 0.5):
+    def start(self, user: User, step_sec: int = 3, step_temp: float = 0.5):
         if not self._status:
             raise RuntimeError(f'{self.name} выключен.')
         elif self.__target is None:
             raise RuntimeError(f'У {self.name} не задана целевая температура.')
 
-        print(f"[{time.strftime('%H:%M:%S')}] {self.name}: старт с {self.current}°C к {self.__target}°C")
+        self._logger.info('[%s] %s: старт с %.1f°C к %.1f°C',
+                          time.strftime('%H:%M:%S'), self.name, self.current, self.__target)
         time.sleep(step_sec)
 
         while abs(self.__current - self.__target) > 1e-6:
@@ -212,10 +248,12 @@ class Thermostat(Device):
             else:
                 self.current = max(self.__target, self.__current - step_temp)
 
-            print(f"[{time.strftime('%H:%M:%S')}] {self.name}: текущая = {self.current:.1f}°C")
+            self._logger.info('[%s] %s: текущая = %.1f°C',
+                              time.strftime('%H:%M:%S'), self.name, self.current)
             time.sleep(step_sec)
 
-        print(f"[{time.strftime('%H:%M:%S')}] {self.name}: достигнута цель {self.__target}°C")
+        self._logger.info('[%s] %s: достигнута цель %.1f°C',
+                          time.strftime('%H:%M:%S'), self.name, self.__target)
         self.turn_off(user)
 
 '-------------------------------------------------CAMERA-------------------------------------------------'
@@ -240,13 +278,13 @@ class Camera(Device):
     def turn_on(self, user: User):
         if not self._status:
             self._status = True
-            print(f'{self.name} включён.')
+            self._logger.info('%s включён.', self.name)
 
     @access_for({Role.ADMIN})
     def turn_off(self, user: User):
         if self._status:
             self._status = False
-            print(f'{self.name} выключён.')
+            self._logger.info('%s выключён.', self.name)
 
     @access_for({Role.ADMIN})
     def start_recording(self, user: User):
@@ -255,6 +293,7 @@ class Camera(Device):
         if self.__record is not None:
             raise RuntimeError("Запись уже начата. Сначала вызовите stop_recording().")
         self.__record = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self._logger.info('%s: начата запись в %s', self.name, self.__record)
 
     @access_for({Role.ADMIN})
     def stop_recording(self, user: User):
@@ -268,10 +307,11 @@ class Camera(Device):
         self.__memory[key] = f'{self.__record} -- {finish}'
         self.__record = None
         self.__next_id += 1
+        self._logger.info('%s: запись остановлена.', self.name)
 
     @access_for({Role.ADMIN})
     def show_memory(self, user: User):
-        pprint(self.__memory)
+        return self.__memory
 
     @access_for({Role.ADMIN})
     def remove(self, user: User, id_obj: int):
@@ -280,7 +320,7 @@ class Camera(Device):
             del self.__memory[key]
         except KeyError:
             raise KeyError(f"Запись с ID {id_obj} не найдена.")
-        print(f"Запись с ID {id_obj} удалена.")
+        self._logger.info('Запись с ID %d удалена.', id_obj)
 
 '-------------------------------------------------CLOCK-------------------------------------------------'
 
@@ -306,7 +346,7 @@ class Clock(Device):
                 return time.strftime('%H:%M:%S', now)
             else:
                 return time.strftime('%I:%M:%S %p', now)
-        raise RuntimeError(f"{self.name} выключены.")
+        raise RuntimeError(f"{self.name} выключен.")
 
     @property
     def current_datetime(self):
@@ -316,37 +356,39 @@ class Clock(Device):
                 return now.strftime('%Y/%m/%d, %H:%M:%S')
             else:
                 return now.strftime('%Y/%m/%d, %I:%M:%S %p')
-        raise RuntimeError(f"{self.name} выключены.")
+        raise RuntimeError(f"{self.name} выключен.")
 
     @access_for({Role.ADMIN})
     def set_12h(self, user: User):
-        if self._status:
-            self._en_time = True
-        raise RuntimeError(f"{self.name} выключены.")
+        if not self._status:
+            raise RuntimeError(f"{self.name} выключен.")
+        self._en_time = True
 
     @access_for({Role.ADMIN})
     def set_24h(self, user: User):
-        if self._status:
-            self._en_time = False
-        raise RuntimeError(f"{self.name} выключены.")
+        if not self._status:
+            raise RuntimeError(f"{self.name} выключен.")
+        self._en_time = False
+
 
     @access_for({Role.ADMIN})
     def turn_on(self, user: User):
         if not self._status:
             self._status = True
-            print(f'{self.name} включены.')
+            self._logger.info('%s включён.', self.name)
 
     @access_for({Role.ADMIN})
     def turn_off(self, user: User):
         if self._status:
             self._status = False
-            print(f'{self.name} выключены.')
+            self._logger.info('%s выключен.', self.name)
 
 '-------------------------------------------------SMARTHOME-------------------------------------------------'
 
-class SmartHome:
+class SmartHome():
     def __init__(self):
         self.__all_devices = {}
+        self._logger = logging.getLogger(self.__class__.__name__)
 
     @property
     def type(self):
@@ -355,32 +397,37 @@ class SmartHome:
     @access_for({Role.ADMIN, Role.USER})
     def add_device(self, user: User, device):
         key = device.id_name
+        if key in self.__all_devices:
+            raise KeyError(f'Устройство с таким ключом: ({key}) уже есть.')
+
         self.__all_devices[key] = device
+        self._logger.info('Устройство %s добавлено в SmartHome.', device.name)
+
 
     @access_for({Role.ADMIN})
     def remove_device(self, user: User, device):
         key = device.id_name
         try:
             del self.__all_devices[key]
+            self._logger.info('Устройство %s удалено из SmartHome.', device.name)
         except KeyError:
             raise KeyError(f"Устройство не найдено.")
 
 
     @access_for({Role.ADMIN})
     def show_all_devices(self, user: User):
-        pprint(self.__all_devices)
+        return self.__all_devices.copy()
 
     def control_device(self, user: User, id_name: str, method_name: str, *args, **kwargs):
-         if id_name in self.__all_devices:
+        if id_name in self.__all_devices:
             obj = self.__all_devices[id_name]
 
             if hasattr(obj, method_name):
                 method = getattr(obj, method_name)
                 return method(user, *args, **kwargs)
-
             else:
                 raise ValueError("Неизвестный метод")
-         else:
+        else:
             raise KeyError(f"Устройство не найдено по id: {id_name}")
 
     @access_for({Role.ADMIN})
@@ -388,9 +435,9 @@ class SmartHome:
         try:
             return self.__all_devices[id_name]
         except KeyError:
-            print(f'Устройство не найдено по id: {id_name}')
+            raise KeyError(f"Устройство не найдено по id: {id_name}")
 
-
-
-
-
+    @access_for({Role.ADMIN})
+    def clear(self, user: User):
+        self._logger.info("Очистка SmartHome")
+        self.__all_devices.clear()
